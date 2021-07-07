@@ -1,0 +1,11 @@
+logs/*
+*.exe
+*.dll
+*.dylib
+.import
+*.import
+*.o
+*.obj
+*.lib
+*.exp
+.sconsign.dblite

@@ -1,0 +1,48 @@
+#!python
+import os
+
+platform = ARGUMENTS.get("platform", ARGUMENTS.get("p", "linux"))
+target = ARGUMENTS.get("target", "debug")
+godot_headers_path = ARGUMENTS.get("headers", os.getenv("GODOT_HEADERS", "../../../godot_headers/"))
+godot_bindings_path = ARGUMENTS.get("cpp_bindings", "../../../cpp_bindings/")
+
+# This makes sure to keep the session environment variables on windows, 
+# that way you can run scons in a vs 2017 prompt and it will find all the required tools
+env = Environment()
+if platform == "windows":
+    env = Environment(ENV = os.environ)
+
+if ARGUMENTS.get("use_llvm", "no") == "yes":
+    env["CXX"] = "clang++"
+
+# put stuff that is the same for all first, saves duplication
+cpp_bindings_libname = 'libgodot_cpp_bindings.a'
+if platform == "osx":
+    env.Append(CCFLAGS = ['-g','-O3', '-std=c++14', '-arch', 'x86_64'])
+    env.Append(LINKFLAGS = ['-arch', 'x86_64', '-framework', 'Cocoa', '-Wl,-undefined,dynamic_lookup'])
+elif platform == "linux":
+    env.Append(CCFLAGS = ['-g','-O3', '-std=c++14', '-Wno-writable-strings'])
+    env.Append(LINKFLAGS = ['-Wl,-R,\'$$ORIGIN\''])
+elif platform == "windows":
+    if target == "debug":
+        env.Append(CCFLAGS = ['-EHsc', '-D_DEBUG', '/MDd'])
+    else:
+        env.Append(CCFLAGS = ['-O2', '-EHsc', '-DNDEBUG', '/MD'])
+    env.Append(LINKFLAGS = ['/WX'])
+    cpp_bindings_libname = 'godot_cpp_bindings'
+
+def add_sources(sources, dir):
+    for f in os.listdir(dir):
+        if f.endswith(".cpp"):
+            sources.append(dir + "/" + f)
+
+env.Append(CPPPATH=[godot_headers_path, godot_bindings_path + 'include/', godot_bindings_path + 'include/core/' ])
+
+env.Append(LIBS=[cpp_bindings_libname])
+env.Append(LIBPATH=[ godot_bindings_path + 'bin/' ])
+
+sources = []
+add_sources(sources, "src")
+
+library = env.SharedLibrary(target='bin/space_colonization', source=sources)
+Default(library)
